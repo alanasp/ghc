@@ -839,12 +839,13 @@ exportlist :: { OrdList (LIE GhcPs) }
         | exportlist1                 { $1 }
 
 exportlist1 :: { OrdList (LIE GhcPs) }
-        : expdoclist export expdoclist ',' exportlist1
-                          {% (addAnnotation (oll ($1 `appOL` $2 `appOL` $3))
-                                            AnnComma (gl $4) ) >>
-                              return ($1 `appOL` $2 `appOL` $3 `appOL` $5) }
-        | expdoclist export expdoclist             { $1 `appOL` $2 `appOL` $3 }
-        | expdoclist                               { $1 }
+        : expdoclist deprWarning export expdoclist ',' exportlist1
+                          {% (addAnnotation (oll ($1 `appOL` $2 `appOL` $3 `appOL` $4))
+                                            AnnComma (gl $5) ) >>
+                              return ($1 `appOL` $2 `appOL` $3 `appOL` $4 `appOL` $6) }
+        | expdoclist deprWarning export expdoclist
+                          { $1 `appOL` $2 `appOL` $3 `appOL` $4 }
+        | expdoclist      { $1 }
 
 expdoclist :: { OrdList (LIE GhcPs) }
         : exp_doc expdoclist                           { $1 `appOL` $2 }
@@ -854,6 +855,13 @@ exp_doc :: { OrdList (LIE GhcPs) }
         : docsection    { unitOL (sL1 $1 (case (unLoc $1) of (n, doc) -> IEGroup noExt n doc)) }
         | docnamed      { unitOL (sL1 $1 (IEDocNamed noExt ((fst . unLoc) $1))) }
         | docnext       { unitOL (sL1 $1 (IEDoc noExt (unLoc $1))) }
+
+
+deprWarning  :: { OrdList (LIE GhcPs) }
+    : '{-# DEPRECATED' STRING '#-}' { unitOL $ sLL $1 $> $ IEDocNamed noExt $
+          "{-# DEPRECATED " ++ unpackFS ( getSTRING $2 ) ++ " #-}" }
+    | {- empty -} {nilOL}
+
 
 
    -- No longer allow things like [] and (,,,) to be exported
@@ -2573,8 +2581,7 @@ aexp    :: { LHsExpr GhcPs }
                                            ams (sLL $1 $> $ HsMultiIf noExt
                                                      (reverse $ snd $ unLoc $2))
                                                (mj AnnIf $1:(fst $ unLoc $2)) }
-        | 'case' exp 'of' altslist      {% ams (L (comb3 $1 $3 $4) $
-                                                   HsCase noExt $2 (mkMatchGroup
+        | 'case' exp 'of' altslist      {% ams (sLL $1 $> $ HsCase noExt $2 (mkMatchGroup
                                                    FromSource (snd $ unLoc $4)))
                                                (mj AnnCase $1:mj AnnOf $3
                                                   :(fst $ unLoc $4)) }
@@ -2875,7 +2882,7 @@ altslist :: { Located ([AddAnn],[LMatch GhcPs (LHsExpr GhcPs)]) }
                                                ,(reverse (snd $ unLoc $2))) }
         |     vocurly    alts  close { L (getLoc $2) (fst $ unLoc $2
                                         ,(reverse (snd $ unLoc $2))) }
-        | '{'                 '}'    { sLL $1 $> ([moc $1,mcc $2],[]) }
+        | '{'                 '}'    { noLoc ([moc $1,mcc $2],[]) }
         |     vocurly          close { noLoc ([],[]) }
 
 alts    :: { Located ([AddAnn],[LMatch GhcPs (LHsExpr GhcPs)]) }

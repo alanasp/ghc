@@ -1168,7 +1168,7 @@ addUsedGREs gres
 warnIfDeprecated :: GlobalRdrElt -> RnM ()
 warnIfDeprecated gre@(GRE { gre_name = name, gre_imp = iss })
   | (imp_spec : _) <- iss
-  = do { dflags <- getDynFlags
+  = trace ("warnIfDeprecated called") $ do { dflags <- getDynFlags
        ; this_mod <- getModule
        ; when (wopt Opt_WarnWarningsDeprecations dflags &&
                not (nameIsLocalOrFrom this_mod name)) $
@@ -1179,14 +1179,14 @@ warnIfDeprecated gre@(GRE { gre_name = name, gre_imp = iss })
                                    (mk_msg imp_spec txt)
                 Nothing  -> return () } }
   | otherwise
-  = return ()
+  = trace ("warnIfDeprecated called") $ return ()
   where
     occ = greOccName gre
     name_mod = ASSERT2( isExternalName name, ppr name ) nameModule name
     doc = text "The name" <+> quotes (ppr occ) <+> ptext (sLit "is mentioned explicitly")
 
     mk_msg imp_spec txt
-      = sep [ sep [ text "In the use of"
+      = sep [ sep [ text "DEPRECATED: In the use of"
                     <+> pprNonVarNameSpace (occNameSpace occ)
                     <+> quotes (ppr occ)
                   , parens imp_msg <> colon ]
